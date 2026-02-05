@@ -42,7 +42,7 @@ This project demonstrates:
 ### Database 
 - PostgreSQL
 - Google Cloud SQL  
-(Currently mocked data is used for demo purposes)
+
 
 ---
 
