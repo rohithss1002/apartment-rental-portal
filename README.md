@@ -39,7 +39,7 @@ This project demonstrates:
 - JWT Authentication
 - Google Cloud Run
 
-### Database (Planned)
+### Database 
 - PostgreSQL
 - Google Cloud SQL  
 (Currently mocked data is used for demo purposes)
