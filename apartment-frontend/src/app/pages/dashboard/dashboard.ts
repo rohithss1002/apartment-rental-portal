@@ -2,6 +2,8 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HeaderComponent } from '../../layout/header/header';
 import { ApiService } from '../../services/api';
+import { Router } from '@angular/router';
+
 
 @Component({
   standalone: true,
@@ -60,6 +62,39 @@ import { ApiService } from '../../services/api';
           </ul>
         </section>
       </div>
+
+      <section class="card units">
+  <h3>Available Units</h3>
+
+  <div *ngIf="units.length === 0">
+    No units available.
+  </div>
+
+  <div *ngIf="bookingMessage" class="success-msg">
+  {{ bookingMessage }}
+  </div>
+
+
+  <div class="unit-grid">
+    <div class="unit-card" *ngFor="let unit of units">
+      <h4>{{ unit.unit_number }}</h4>
+      <p><strong>Tower:</strong> {{ unit.tower_name }}</p>
+      <p><strong>Type:</strong> {{ unit.bhk_type }}</p>
+      <p><strong>Rent:</strong> ₹{{ unit.rent }}</p>
+      <p><strong>Status:</strong> {{ unit.status }}</p>
+      <button (click)="book(unit.id)" 
+        [disabled]="unit.status !== 'AVAILABLE'">
+        Book
+      </button>
+      <button 
+      (click)="book(unit.id)"
+      [disabled]="unit.status !== 'AVAILABLE'">
+      {{ unit.status === 'AVAILABLE' ? 'Book' : 'Not Available' }}
+      </button>
+    </div>
+  </div>
+</section>
+
     </main>
   `,
   styles: [`
@@ -83,25 +118,79 @@ import { ApiService } from '../../services/api';
     .act-title { font-weight:600 }
     .act-user { font-size:12px; color:#6b7280 }
     .act-time { font-size:11px; color:#9ca3af }
+
+    .units {
+  margin-top: 20px;
+}
+
+.unit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.unit-card {
+  background: #fff;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 6px rgba(2,6,23,0.06);
+}
+
+.success-msg {
+  margin-bottom: 10px;
+  padding: 10px;
+  background: #d1fae5;
+  color: #065f46;
+  border-radius: 6px;
+}
+
+
   `]
 })
 export class Dashboard implements OnInit {
   stats: any = {};
   trend: Array<{month:string, occupancy:number}> = [];
   activities: any[] = [];
+  bookingMessage = '';
+  constructor(
+    private api: ApiService,
+    private router: Router
+  ) {}
+
 
   // svg helpers
   svgView = '0 0 100 40';
   trendPath = '';
   svgPoints: Array<{x:number,y:number}> = [];
 
-  constructor(private api: ApiService) {}
+
+  units: any[] = [];
 
   ngOnInit() {
-    this.api.getDashboard().subscribe({ next: (res) => this.stats = res, error: (err)=> console.error(err) });
-    this.api.getOccupancyTrend().subscribe({ next: (t) => { this.trend = t; this.buildSvg(); }, error: (e)=> console.error(e) });
-    this.api.getRecentActivity().subscribe({ next: (a) => this.activities = a, error: (e)=> console.error(e) });
-  }
+  this.api.getUnits().subscribe({
+    next: (data) => this.units = data,
+    error: (err) => console.error(err)
+  });
+}
+
+
+
+  book(unitId: number) {
+  this.api.bookUnit(unitId).subscribe({
+    next: () => {
+      alert("Booking request sent!");
+
+      this.api.getUnits().subscribe({
+        next: (data) => this.units = data
+      });
+    },
+    error: (err) => {
+      console.error(err);
+      alert("Booking failed");
+    }
+  });
+}
+
 
   buildSvg() {
     if (!this.trend || this.trend.length === 0) return;
@@ -124,6 +213,8 @@ export class Dashboard implements OnInit {
 
     // build path
     this.trendPath = points.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(' ');
+
+    
   }
 }
 

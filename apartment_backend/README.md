@@ -19,14 +19,14 @@ This project demonstrates:
 ## Live Deployment
 
 - **Frontend (Firebase Hosting – Google Cloud)**  
-  ttps://<your-project-id>.web.app
+  https://apartment-rental-portal.web.app/
 
 - **Backend API (Google Cloud Run)**  
-  https://<cloud-run-service-url>
+  https://apartment-api-682540295123.asia-south1.run.app/
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 ### Frontend
 - Angular (Standalone Components)
@@ -163,6 +163,6 @@ Name: Rohith
 Role: Full Stack Developer
 Technologies: Angular, Flask, Google Cloud, Firebase
 
-✅ Conclusion
+Conclusion
 
 This project showcases full-stack development skills, modern Angular architecture, REST API design, and real-world cloud deployment using Google Cloud Platform. The system is designed to be scalable and production-ready with future enhancements.

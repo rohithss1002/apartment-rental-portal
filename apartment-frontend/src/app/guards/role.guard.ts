@@ -5,9 +5,9 @@ import { Router } from '@angular/router';
 export const roleGuard = (allowedRoles: string[]): CanActivateFn => {
   return () => {
     const router = inject(Router);
-    const role = localStorage.getItem('role');
+    const role = localStorage.getItem('role')?.toLowerCase();
 
-    if (role && allowedRoles.includes(role)) {
+    if (role && allowedRoles.map(r => r.toLowerCase()).includes(role)) {
       return true;
     }
 
@@ -15,3 +15,4 @@ export const roleGuard = (allowedRoles: string[]): CanActivateFn => {
     return false;
   };
 };
+

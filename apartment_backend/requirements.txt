@@ -1,4 +1,6 @@
-flask
+Flask
 flask-jwt-extended
 flask-bcrypt
 gunicorn
+psycopg2-binary
+flask-cors

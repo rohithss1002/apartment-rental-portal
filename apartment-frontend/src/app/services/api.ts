@@ -1,25 +1,83 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { of, delay, catchError, throwError } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
+
   private baseUrl = 'https://apartment-api-682540295123.asia-south1.run.app';
 
   constructor(private http: HttpClient) {}
 
+  // ---------------- AUTH ----------------
+
   login(email: string, password: string) {
-  return this.mockLogin(email, password);
-}
+    return this.http.post<any>(`${this.baseUrl}/login`, {
+      email,
+      password
+    });
+  }
 
+  register(fullName: string, email: string, password: string) {
+    return this.http.post<any>(`${this.baseUrl}/register`, {
+      full_name: fullName,
+      email,
+      password
+    });
+  }
 
+  // ---------------- TOKEN HEADER ----------------
 
+  private getAuthHeaders(): HttpHeaders {
+    const token = localStorage.getItem('access_token');
+    return new HttpHeaders({
+      Authorization: token ? `Bearer ${token}` : ''
+    });
+  }
 
-  // Dashboard stats: try real backend, fallback to mock
+  // ---------------- UNITS ----------------
+
+  getUnits() {
+    return this.http.get<any[]>(`${this.baseUrl}/units`);
+  }
+
+  getUnitDetails(id: number) {
+    return this.http.get<any>(`${this.baseUrl}/units/${id}`);
+  }
+
+  bookUnit(unitId: number) {
+    return this.http.post(
+      `${this.baseUrl}/book`,
+      { unit_id: unitId },
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  // ---------------- ADMIN ----------------
+
+  getAllBookings() {
+    return this.http.get<any[]>(`${this.baseUrl}/admin/bookings`);
+  }
+
+  updateBooking(id: number, status: string) {
+    return this.http.put(
+      `${this.baseUrl}/admin/bookings/${id}`,
+      { status }
+    );
+  }
+
+  getAdminOverview() {
+    return this.http.get<any>(
+      `${this.baseUrl}/admin/overview`,
+      { headers: this.getAuthHeaders() }
+    );
+  }
+
+  // ---------------- DASHBOARD (Mock fallback) ----------------
+
   getDashboard() {
     return this.http.get<any>(`${this.baseUrl}/dashboard`).pipe(
       catchError(() => {
-        // Mock dashboard data
         const mock = {
           towers: 4,
           units: 124,
@@ -33,7 +91,6 @@ export class ApiService {
     );
   }
 
-  // Occupancy trend (last 6 months) - backend or mock
   getOccupancyTrend() {
     return this.http.get<any>(`${this.baseUrl}/dashboard/occupancy`).pipe(
       catchError(() => {
@@ -50,7 +107,6 @@ export class ApiService {
     );
   }
 
-  // Recent activity list - backend or mock
   getRecentActivity() {
     return this.http.get<any>(`${this.baseUrl}/dashboard/activity`).pipe(
       catchError(() => {
@@ -64,41 +120,4 @@ export class ApiService {
       })
     );
   }
-
-  getAdminOverview() {
-  const token = localStorage.getItem('access_token');
-
-  return this.http.get<any>(`${this.baseUrl}/admin/overview`, {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-}
-
-
-  // Mock login for testing without backend
-   private mockLogin(email: string, password: string) {
-  const mockUsers: any = {
-    'admin@apartment.com': {
-      password: 'admin123',
-      role: 'ADMIN'
-    },
-    'user@apartment.com': {
-      password: 'user123',
-      role: 'USER'
-    }
-  };
-
-  if (mockUsers[email] && mockUsers[email].password === password) {
-    return of({
-      access_token: 'mock-jwt-token-' + Date.now(),
-      role: mockUsers[email].role
-    }).pipe(delay(500));
-  }
-
-  return throwError(() => ({
-    error: { message: 'Invalid credentials' }
-  }));
-}
-
 }

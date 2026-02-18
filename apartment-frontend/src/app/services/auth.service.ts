@@ -1,46 +1,42 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable } from '@angular/core';
+import { ApiService } from './api';
 import { Router } from '@angular/router';
-import { PLATFORM_ID } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
-
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
 
-  private platformId = inject(PLATFORM_ID);
+  constructor(
+    private api: ApiService,
+    private router: Router
+  ) {}
 
-  constructor(private router: Router) {}
+  // 🔐 LOGIN
+  login(email: string, password: string) {
+    return this.api.login(email, password);
+  }
 
+  saveAuth(token: string, role: string) {
+    localStorage.setItem('access_token', token);
+    localStorage.setItem('role', role.toLowerCase());
+  }
+
+  // 🔍 AUTH STATE
   isLoggedIn(): boolean {
-    if (isPlatformBrowser(this.platformId)) {
-      return !!localStorage.getItem('access_token');
-    }
-    return false;
-  }
-
-  getRole(): string | null {
-    if (isPlatformBrowser(this.platformId)) {
-      return localStorage.getItem('role');
-    }
-    return null;
-  }
-
-  isAdmin(): boolean {
-    return this.getRole() === 'ADMIN';
-  }
-
-  isTenant(): boolean {
-    return this.getRole() === 'USER';
+    return !!localStorage.getItem('access_token');
   }
 
   logout() {
-    if (isPlatformBrowser(this.platformId)) {
-      localStorage.clear();
-    }
+    localStorage.clear();
     this.router.navigate(['/login']);
   }
 
-  isHomeRoute(): boolean {
-  return this.router.url === '/' || this.router.url === '';
+  getRole(): string | null {
+    return localStorage.getItem('role');
+  }
+
+  // 🛡 USED IN header.ts
+  isAdmin(): boolean {
+  return this.getRole() === 'admin';
 }
+
 }

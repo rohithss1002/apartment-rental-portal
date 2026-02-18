@@ -4,6 +4,8 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { HeaderComponent } from './layout/header/header';
 import { AuthService } from './services/auth.service';
+import { Router } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
 
 @Component({
   selector: 'app-root',
@@ -14,11 +16,11 @@ import { AuthService } from './services/auth.service';
     RouterLink,
     HeaderComponent
   ],
+
+
   template: `
     <app-header *ngIf="auth.isLoggedIn()"></app-header>
-    
-    <!-- Landing Page (when not logged in) -->
-    <div *ngIf="!auth.isLoggedIn() && auth.isHomeRoute()" class="landing">
+    <div *ngIf="!auth.isLoggedIn()">
       <nav class="navbar">
         <div class="nav-content">
           <div class="logo">🏢 Apartment Portal</div>
@@ -83,6 +85,7 @@ import { AuthService } from './services/auth.service';
         <p>&copy; 2026 Apartment Rental Portal. All rights reserved.</p>
       </footer>
     </div>
+    
 
     <!-- Routed pages (login, admin, etc.) -->
     <router-outlet></router-outlet>
@@ -309,7 +312,12 @@ import { AuthService } from './services/auth.service';
       .cta-section h2 { font-size: 28px; }
     }
   `]
+
 })
 export class App {
-  constructor(public auth: AuthService) {}
+  constructor(
+    public auth: AuthService,
+    public router: Router
+  ) {}
 }
+
