@@ -104,7 +104,7 @@ ng serve
 Frontend runs at:
 
 http://localhost:4200
-▶ Backend Setup
+Backend Setup
 cd backend
 pip install -r requirements.txt
 python app.py
