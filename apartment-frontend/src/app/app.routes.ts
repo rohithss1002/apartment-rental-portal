@@ -1,19 +1,17 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './guards/auth.guard';
 import { roleGuard } from './guards/role.guard';
-import { Register } from './pages/register/register';
-import { Login } from './pages/login/login';
-import { Dashboard } from './pages/dashboard/dashboard';
-import { Units } from './units/units';
 
 export const routes: Routes = [
 
+  // ---- Default: go to units browse page (no login needed) ----
   {
     path: '',
-    redirectTo: 'login',
+    redirectTo: 'units',
     pathMatch: 'full'
   },
 
+  // ---- Public routes (no auth required) ----
   {
     path: 'login',
     loadComponent: () =>
@@ -21,24 +19,31 @@ export const routes: Routes = [
   },
 
   {
-    path: 'dashboard',
-    canActivate: [authGuard],
+    path: 'register',
     loadComponent: () =>
-      import('./pages/dashboard/dashboard').then(m => m.Dashboard)
+      import('./pages/register/register').then(m => m.Register)
   },
 
+  // ---- Units browse: PUBLIC (no authGuard) ----
   {
     path: 'units',
-    canActivate: [authGuard],
     loadComponent: () =>
       import('./units/units').then(m => m.Units)
   },
 
+  // ---- Unit detail: PUBLIC ----
   {
     path: 'unit/:id',
-    canActivate: [authGuard],
     loadComponent: () =>
       import('./pages/unit-details/unit-details').then(m => m.UnitDetails)
+  },
+
+  // ---- Protected routes ----
+  {
+    path: 'dashboard',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./pages/dashboard/dashboard').then(m => m.Dashboard)
   },
 
   {
@@ -72,7 +77,6 @@ export const routes: Routes = [
 
   {
     path: '**',
-    redirectTo: 'login'
+    redirectTo: 'units'
   }
 ];
-

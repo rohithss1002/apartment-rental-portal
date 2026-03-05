@@ -1,48 +1,188 @@
-<p>units works!</p>
 <div class="page-container">
 
-  <h1 class="page-title">Browse Available Units</h1>
-
-  <div *ngIf="units.length === 0" class="empty-message">
-    No units available right now.
+  <!-- ===== PAGE HEADER ===== -->
+  <div class="page-header">
+    <h1 class="page-title">Browse Available Units</h1>
+    <p class="page-subtitle">{{ totalRecords }} unit{{ totalRecords !== 1 ? 's' : '' }} found</p>
   </div>
 
-  <div class="units-grid">
+  <!-- ===== SEARCH + FILTER BAR ===== -->
+  <div class="search-filter-bar">
+
+    <!-- Search input -->
+    <div class="search-input-wrapper">
+      <span class="search-icon">🔍</span>
+      <input
+        type="text"
+        class="search-input"
+        placeholder="Search by unit number, BHK type, or tower..."
+        [(ngModel)]="searchQuery"
+        (ngModelChange)="onSearchInput()"
+      />
+      <button *ngIf="searchQuery" class="clear-search" (click)="searchQuery=''; onSearchInput()">✕</button>
+    </div>
+
+    <!-- Filter toggle button -->
+    <button class="filter-toggle-btn" (click)="filtersOpen = !filtersOpen">
+      <span>⚙ Filters</span>
+      <span *ngIf="hasActiveFilters" class="filter-badge">●</span>
+      <span class="chevron">{{ filtersOpen ? '▲' : '▼' }}</span>
+    </button>
+
+  </div>
+
+  <!-- ===== EXPANDED FILTER PANEL ===== -->
+  <div class="filter-panel" *ngIf="filtersOpen">
+
+    <!-- Tower filter -->
+    <div class="filter-group">
+      <label class="filter-label">Tower</label>
+      <select class="filter-select" [(ngModel)]="selectedTower" (ngModelChange)="onFilterChange()">
+        <option value="">All Towers</option>
+        <option *ngFor="let tower of meta.towers" [value]="tower">{{ tower }}</option>
+      </select>
+    </div>
+
+    <!-- Status filter -->
+    <div class="filter-group">
+      <label class="filter-label">Status</label>
+      <div class="status-chips">
+        <button
+          class="chip"
+          [class.active]="selectedStatus === ''"
+          (click)="selectedStatus = ''; onFilterChange()">
+          All
+        </button>
+        <button
+          *ngFor="let s of meta.statuses"
+          class="chip"
+          [class.active]="selectedStatus === s"
+          [class.available]="s === 'AVAILABLE'"
+          [class.occupied]="s === 'OCCUPIED'"
+          [class.maintenance]="s === 'MAINTENANCE'"
+          (click)="selectedStatus = s; onFilterChange()">
+          {{ s }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Price range filter -->
+    <div class="filter-group">
+      <label class="filter-label">
+        Price Range
+        <span class="price-hint">
+          ({{ meta.price_range.min | number }} – {{ meta.price_range.max | number }} ₹)
+        </span>
+      </label>
+      <div class="price-inputs">
+        <input
+          type="number"
+          class="price-input"
+          placeholder="Min ₹"
+          [(ngModel)]="minPrice"
+          (ngModelChange)="onFilterChange()"
+          [min]="meta.price_range.min"
+          [max]="meta.price_range.max"
+        />
+        <span class="price-sep">–</span>
+        <input
+          type="number"
+          class="price-input"
+          placeholder="Max ₹"
+          [(ngModel)]="maxPrice"
+          (ngModelChange)="onFilterChange()"
+          [min]="meta.price_range.min"
+          [max]="meta.price_range.max"
+        />
+      </div>
+    </div>
+
+    <!-- Clear filters -->
+    <div class="filter-actions">
+      <button class="clear-filters-btn" *ngIf="hasActiveFilters" (click)="clearFilters()">
+        Clear All Filters
+      </button>
+    </div>
+
+  </div>
+
+  <!-- ===== LOADING ===== -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="spinner"></div>
+    <p>Loading units...</p>
+  </div>
+
+  <!-- ===== ERROR ===== -->
+  <div *ngIf="error && !loading" class="error-state">
+    <p>{{ error }}</p>
+    <button (click)="loadUnits()">Retry</button>
+  </div>
+
+  <!-- ===== EMPTY STATE ===== -->
+  <div *ngIf="!loading && !error && units.length === 0" class="empty-state">
+    <p>🏠 No units match your search.</p>
+    <button *ngIf="hasActiveFilters" class="clear-filters-btn" (click)="clearFilters()">
+      Clear Filters
+    </button>
+  </div>
+
+  <!-- ===== UNITS GRID ===== -->
+  <div class="units-grid" *ngIf="!loading && units.length > 0">
 
     <div *ngFor="let unit of units" class="unit-card">
 
       <div class="image-wrapper">
-        <img 
-          [src]="unit.image_url || 'https://via.placeholder.com/400x250?text=No+Image'" 
-          alt="Unit Image">
+        <img
+          [src]="unit.image_url || 'https://via.placeholder.com/400x250?text=No+Image'"
+          alt="Unit Image"
+          loading="lazy"
+        />
+        <span
+          class="status-badge"
+          [class.available]="unit.status === 'AVAILABLE'"
+          [class.occupied]="unit.status === 'OCCUPIED'"
+          [class.maintenance]="unit.status === 'MAINTENANCE'">
+          {{ unit.status }}
+        </span>
       </div>
 
       <div class="unit-info">
-        <h3>{{ unit.tower_name }} - {{ unit.unit_number }}</h3>
-
+        <h3>{{ unit.tower_name }} – {{ unit.unit_number }}</h3>
         <p class="bhk">{{ unit.bhk_type }}</p>
-
         <p class="rent">₹ {{ unit.rent | number }}</p>
 
-        <span 
-          class="status" 
-          [ngClass]="{
-            'available': unit.status === 'AVAILABLE',
-            'booked': unit.status !== 'AVAILABLE'
-          }">
-          {{ unit.status }}
-        </span>
-
-        <button 
-          *ngIf="unit.status === 'AVAILABLE'" 
+        <button
+          *ngIf="unit.status === 'AVAILABLE'"
           class="book-btn"
           (click)="book(unit.id)">
-          Book Now
+          {{ isLoggedIn ? 'Book Now' : 'Login to Book' }}
         </button>
 
+        <p *ngIf="unit.status !== 'AVAILABLE'" class="not-available">
+          Not Available
+        </p>
       </div>
 
     </div>
+
+  </div>
+
+  <!-- ===== PAGINATION ===== -->
+  <div class="pagination" *ngIf="!loading && totalPages > 1">
+
+    <button class="page-btn" (click)="goToPage(1)" [disabled]="currentPage === 1">«</button>
+    <button class="page-btn" (click)="goToPage(currentPage - 1)" [disabled]="currentPage === 1">‹</button>
+
+    <button
+      *ngFor="let p of pageNumbers"
+      class="page-btn"
+      [class.active]="p === currentPage"
+      (click)="goToPage(p)">
+      {{ p }}
+    </button>
+
+    <button class="page-btn" (click)="goToPage(currentPage + 1)" [disabled]="currentPage === totalPages">›</button>
+    <button class="page-btn" (click)="goToPage(totalPages)" [disabled]="currentPage === totalPages">»</button>
 
   </div>
 

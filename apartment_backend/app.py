@@ -6,7 +6,8 @@ from flask_jwt_extended import (
     JWTManager,
     jwt_required,
     get_jwt_identity,
-    create_access_token
+    create_access_token,
+    get_jwt 
 )
 from flask_bcrypt import Bcrypt
 from flask_cors import CORS
@@ -243,6 +244,179 @@ def book_unit():
 
     return jsonify({"message": "Booking request submitted successfully"})
 
+# ---------------- SEARCH + FILTER UNITS ----------------
+@app.route("/units/search", methods=["GET"])
+def search_units():
+    q = request.args.get("q", "").strip()
+    min_price = request.args.get("min_price", type=float)
+    max_price = request.args.get("max_price", type=float)
+    status_param = request.args.get("status", "").strip()
+    tower = request.args.get("tower", "").strip()
+
+    try:
+        page = max(int(request.args.get("page", 1)), 1)
+        limit = min(max(int(request.args.get("limit", 12)), 1), 50)
+    except ValueError:
+        page, limit = 1, 12
+
+    offset = (page - 1) * limit
+    conditions = ["1=1"]
+    params = []
+
+    if q:
+        conditions.append("(u.unit_number ILIKE %s OR u.bhk_type ILIKE %s OR t.name ILIKE %s)")
+        like_q = f"%{q}%"
+        params.extend([like_q, like_q, like_q])
+
+    if min_price is not None:
+        conditions.append("u.rent >= %s")
+        params.append(min_price)
+
+    if max_price is not None:
+        conditions.append("u.rent <= %s")
+        params.append(max_price)
+
+    if status_param:
+        statuses = [s.strip().upper() for s in status_param.split(",") if s.strip()]
+        if statuses:
+            placeholders = ", ".join(["%s"] * len(statuses))
+            conditions.append(f"u.status IN ({placeholders})")
+            params.extend(statuses)
+
+    if tower:
+        conditions.append("t.name ILIKE %s")
+        params.append(f"%{tower}%")
+
+    where_clause = " AND ".join(conditions)
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute(f"SELECT COUNT(*) FROM units u JOIN towers t ON u.tower_id = t.id WHERE {where_clause}", tuple(params))
+    total_records = cur.fetchone()[0]
+    total_pages = max((total_records + limit - 1) // limit, 1)
+
+    cur.execute(f"""
+        SELECT u.id, u.unit_number, u.bhk_type, u.rent, u.status, u.image_url, t.name
+        FROM units u JOIN towers t ON u.tower_id = t.id
+        WHERE {where_clause}
+        ORDER BY u.id
+        LIMIT %s OFFSET %s
+    """, tuple(params) + (limit, offset))
+
+    rows = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        "page": page, "limit": limit,
+        "total_records": total_records, "total_pages": total_pages,
+        "count": len(rows),
+        "data": [
+            {"id": r[0], "unit_number": r[1], "bhk_type": r[2],
+             "rent": float(r[3]) if r[3] else None,
+             "status": r[4], "image_url": r[5], "tower_name": r[6]}
+            for r in rows
+        ]
+    })
+
+
+# ---------------- FILTER METADATA ----------------
+@app.route("/units/filter-meta", methods=["GET"])
+def filter_meta():
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT DISTINCT name FROM towers ORDER BY name")
+    towers = [r[0] for r in cur.fetchall()]
+
+    cur.execute("SELECT DISTINCT status FROM units ORDER BY status")
+    statuses = [r[0] for r in cur.fetchall()]
+
+    cur.execute("SELECT DISTINCT bhk_type FROM units ORDER BY bhk_type")
+    bhk_types = [r[0] for r in cur.fetchall()]
+
+    cur.execute("SELECT MIN(rent), MAX(rent) FROM units")
+    price_row = cur.fetchone()
+
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        "towers": towers,
+        "statuses": statuses,
+        "bhk_types": bhk_types,
+        "price_range": {
+            "min": float(price_row[0]) if price_row[0] else 0,
+            "max": float(price_row[1]) if price_row[1] else 0
+        }
+    })
+
+# ---------------- UPDATE BOOKING STATUS (Admin) ----------------
+@app.route("/admin/bookings/<int:booking_id>", methods=["PUT"])
+@jwt_required()
+def update_booking(booking_id):
+    claims = get_jwt()
+    if claims.get("role") != "ADMIN":
+        return jsonify({"error": "Admin access required"}), 403
+
+    data = request.get_json()
+    status = data.get("status")
+
+    if status not in ["APPROVED", "DECLINED"]:
+        return jsonify({"error": "Invalid status"}), 400
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "UPDATE bookings SET status = %s WHERE id = %s",
+        (status, booking_id)
+    )
+    conn.commit()
+
+    cur.close()
+    conn.close()
+
+    return jsonify({"message": f"Booking {status.lower()} successfully"})
+
+# ---------------- GET ALL BOOKINGS (Admin) ----------------
+@app.route("/admin/bookings", methods=["GET"])
+@jwt_required()
+def get_all_bookings():
+    claims = get_jwt()
+    if claims.get("role") != "ADMIN":
+        return jsonify({"error": "Admin access required"}), 403
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT b.id, u.full_name, un.unit_number, t.name, b.status, b.request_date
+        FROM bookings b
+        JOIN users u ON b.user_id = u.id
+        JOIN units un ON b.unit_id = un.id
+        JOIN towers t ON un.tower_id = t.id
+        ORDER BY b.request_date DESC
+    """)
+    rows = cur.fetchall()
+
+    cur.close()
+    conn.close()
+
+    return jsonify({
+        "data": [
+            {
+                "booking_id": r[0],
+                "user_name": r[1],
+                "unit_number": r[2],
+                "tower": r[3],
+                "status": r[4],
+                "request_date": r[5].isoformat()
+            }
+            for r in rows
+        ]
+    })
 
 # ---------------- ENTRY POINT ----------------
 if __name__ == "__main__":
